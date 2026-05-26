@@ -78,8 +78,8 @@ async function collectFromRepo(
 
   // Build log options
   const logOptions: Record<string, string | number | undefined> = {
-    '--since': dateRange.from,
-    '--until': addOneDay(dateRange.to), // --until is exclusive, so add a day
+    '--since': `${dateRange.from}T00:00:00`,
+    '--until': `${addOneDay(dateRange.to)}T00:00:00`, // --until is exclusive, so add a day
     '--no-merges': undefined, // skip merge commits — they add noise
   };
 
