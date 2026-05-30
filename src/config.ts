@@ -5,7 +5,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { WeekPilotConfig } from './types.js';
+import type { WeekPilotConfig, LlmProvider } from './types.js';
 import { logger } from './utils/logger.js';
 
 const DEFAULT_DATA_DIR = path.join(os.homedir(), '.weekpilot');
@@ -44,6 +44,10 @@ export function loadConfig(): WeekPilotConfig {
     }
   }
 
+  // Resolve LLM provider
+  const rawProvider = (process.env['LLM_PROVIDER'] || fileConfig.llmProvider || 'openai').toLowerCase();
+  const llmProvider: LlmProvider = rawProvider === 'gemini' ? 'gemini' : 'openai';
+
   // Build final config with env var overrides
   const config: WeekPilotConfig = {
     repos: parseRepos(process.env['WEEKPILOT_REPOS']) || fileConfig.repos || [],
@@ -52,8 +56,11 @@ export function loadConfig(): WeekPilotConfig {
     ),
     dataDir,
     outputsDir: expandHome(fileConfig.outputsDir || path.join(dataDir, 'outputs')),
+    llmProvider,
     openaiApiKey: process.env['OPENAI_API_KEY'] || fileConfig.openaiApiKey || '',
     openaiModel: process.env['WEEKPILOT_MODEL'] || fileConfig.openaiModel || 'gpt-4o-mini',
+    geminiApiKey: process.env['GEMINI_API_KEY'] || fileConfig.geminiApiKey || '',
+    geminiModel: process.env['WEEKPILOT_GEMINI_MODEL'] || fileConfig.geminiModel || 'gemini-flash-latest',
     authorFilter: process.env['WEEKPILOT_AUTHOR'] || fileConfig.authorFilter,
   };
 
@@ -73,12 +80,14 @@ export function saveConfig(config: WeekPilotConfig): void {
   const configPath = path.join(config.dataDir, CONFIG_FILENAME);
   ensureDir(config.dataDir);
 
-  // Don't persist the API key to file — keep it in env only
+  // Don't persist API keys to file — keep them in env only
   const persistable = {
     repos: config.repos,
     notesDir: config.notesDir,
     outputsDir: config.outputsDir,
+    llmProvider: config.llmProvider,
     openaiModel: config.openaiModel,
+    geminiModel: config.geminiModel,
     authorFilter: config.authorFilter,
   };
 
@@ -96,10 +105,17 @@ export function validateConfig(
 ): string[] {
   const errors: string[] = [];
 
-  if (options.requireApiKey && !config.openaiApiKey) {
-    errors.push(
-      'OPENAI_API_KEY is not set. Set it via environment variable or run `weekpilot init`.'
-    );
+  if (options.requireApiKey) {
+    if (config.llmProvider === 'openai' && !config.openaiApiKey) {
+      errors.push(
+        'OPENAI_API_KEY is not set. Set it via environment variable or run `weekpilot init`.'
+      );
+    }
+    if (config.llmProvider === 'gemini' && !config.geminiApiKey) {
+      errors.push(
+        'GEMINI_API_KEY is not set. Set it via environment variable or in your .env file.'
+      );
+    }
   }
 
   if (config.repos.length === 0) {

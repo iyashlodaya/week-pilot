@@ -116,7 +116,7 @@ export function printConfig(config: Record<string, unknown>): void {
   console.log('');
   for (const [key, value] of Object.entries(config)) {
     const displayValue =
-      key === 'openaiApiKey' && typeof value === 'string' && value.length > 0
+      (key === 'openaiApiKey' || key === 'geminiApiKey') && typeof value === 'string' && value.length > 0
         ? value.slice(0, 7) + '...' + value.slice(-4)
         : Array.isArray(value)
           ? value.length > 0

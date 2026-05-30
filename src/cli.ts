@@ -101,20 +101,46 @@ program
       config.authorFilter = authorInput.trim();
     }
 
+    // LLM provider
+    const providerInput = await ask(
+      `\nLLM provider (openai or gemini)\n  Current: ${config.llmProvider}\n  > `
+    );
+    if (providerInput.trim()) {
+      const p = providerInput.trim().toLowerCase();
+      if (p === 'gemini' || p === 'openai') {
+        config.llmProvider = p;
+      } else {
+        console.log(`  ⚠ Unknown provider "${p}", keeping "${config.llmProvider}"`);
+      }
+    }
+
     // Model
+    const modelLabel = config.llmProvider === 'gemini' ? 'Gemini model' : 'OpenAI model';
+    const currentModel = config.llmProvider === 'gemini' ? config.geminiModel : config.openaiModel;
     const modelInput = await ask(
-      `\nOpenAI model\n  Current: ${config.openaiModel}\n  > `
+      `\n${modelLabel}\n  Current: ${currentModel}\n  > `
     );
     if (modelInput.trim()) {
-      config.openaiModel = modelInput.trim();
+      if (config.llmProvider === 'gemini') {
+        config.geminiModel = modelInput.trim();
+      } else {
+        config.openaiModel = modelInput.trim();
+      }
     }
 
     rl.close();
 
     saveConfig(config);
-    console.log(
-      '\n💡 Set your API key via: export OPENAI_API_KEY=sk-...\n'
-    );
+
+    if (config.llmProvider === 'gemini') {
+      console.log(
+        '\n💡 Set your API key via: export GEMINI_API_KEY=your-key-here\n'
+      );
+    } else {
+      console.log(
+        '\n💡 Set your API key via: export OPENAI_API_KEY=sk-...\n'
+      );
+    }
   });
 
 // ─── collect ───────────────────────────────────────────────
@@ -382,8 +408,11 @@ program
         notesDir: config.notesDir,
         outputsDir: config.outputsDir,
         repos: config.repos,
+        llmProvider: config.llmProvider,
         openaiModel: config.openaiModel,
         openaiApiKey: config.openaiApiKey,
+        geminiModel: config.geminiModel,
+        geminiApiKey: config.geminiApiKey,
         authorFilter: config.authorFilter || '(all)',
       });
     } else {
@@ -393,8 +422,11 @@ program
         notesDir: config.notesDir,
         outputsDir: config.outputsDir,
         repos: config.repos,
+        llmProvider: config.llmProvider,
         openaiModel: config.openaiModel,
         openaiApiKey: config.openaiApiKey,
+        geminiModel: config.geminiModel,
+        geminiApiKey: config.geminiApiKey,
         authorFilter: config.authorFilter || '(all)',
       });
     }

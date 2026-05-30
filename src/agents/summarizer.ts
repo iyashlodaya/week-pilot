@@ -23,23 +23,28 @@ import {
 /**
  * AI Summarizer agent that generates standup updates and weekly summaries.
  *
- * Uses OpenAI chat completions to transform raw collected data into
- * natural-sounding engineer updates.
+ * Supports multiple LLM providers (OpenAI, Gemini) controlled by config.
+ * The active provider is selected via the LLM_PROVIDER env var / config field.
  */
 export class Summarizer {
-  private client: OpenAI;
-  private model: string;
+  private config: WeekPilotConfig;
+
+  // OpenAI client — lazily initialised only when provider is 'openai'
+  private openaiClient: OpenAI | null = null;
 
   constructor(config: WeekPilotConfig) {
-    this.client = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.openaiModel;
+    this.config = config;
+
+    if (config.llmProvider === 'openai') {
+      this.openaiClient = new OpenAI({ apiKey: config.openaiApiKey });
+    }
   }
 
   /**
    * Generate a daily standup update from collected data.
    */
   async generateDaily(data: CollectedData): Promise<GeneratedSummary> {
-    logger.info('Generating daily standup update...');
+    logger.info(`Generating daily standup update via ${this.config.llmProvider}...`);
 
     const systemPrompt = dailySystemPrompt();
     const userPrompt = dailyUserPrompt(data);
@@ -63,7 +68,7 @@ export class Summarizer {
    * Generate a weekly summary from collected data.
    */
   async generateWeekly(data: CollectedData): Promise<GeneratedSummary> {
-    logger.info('Generating weekly summary...');
+    logger.info(`Generating weekly summary via ${this.config.llmProvider}...`);
 
     const systemPrompt = weeklySystemPrompt();
     const userPrompt = weeklyUserPrompt(data);
@@ -87,6 +92,7 @@ export class Summarizer {
 
   /**
    * Make the actual LLM API call with retry logic.
+   * Delegates to the provider-specific implementation.
    */
   private async callLLM(
     systemPrompt: string,
@@ -102,13 +108,29 @@ export class Summarizer {
       );
     }
 
+    if (this.config.llmProvider === 'gemini') {
+      return this.callGemini(systemPrompt, truncatedUserPrompt);
+    }
+
+    return this.callOpenAI(systemPrompt, truncatedUserPrompt);
+  }
+
+  // ── OpenAI ───────────────────────────────────────────────
+
+  private async callOpenAI(
+    systemPrompt: string,
+    userPrompt: string
+  ): Promise<string> {
+    const client = this.openaiClient!;
+    const model = this.config.openaiModel;
+
     const response = await retry(
       async () => {
-        const completion = await this.client.chat.completions.create({
-          model: this.model,
+        const completion = await client.chat.completions.create({
+          model,
           messages: [
             { role: 'developer', content: systemPrompt },
-            { role: 'user', content: truncatedUserPrompt },
+            { role: 'user', content: userPrompt },
           ],
           temperature: 0.3, // low temperature for consistent, factual output
           max_tokens: 1500,
@@ -121,6 +143,63 @@ export class Summarizer {
         return content;
       },
       { maxAttempts: 3, label: 'OpenAI API call' }
+    );
+
+    return response;
+  }
+
+  // ── Gemini (REST API) ────────────────────────────────────
+
+  private async callGemini(
+    systemPrompt: string,
+    userPrompt: string
+  ): Promise<string> {
+    const model = this.config.geminiModel;
+    const apiKey = this.config.geminiApiKey;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+
+    const body = {
+      system_instruction: {
+        parts: [{ text: systemPrompt }],
+      },
+      contents: [
+        {
+          parts: [{ text: userPrompt }],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.3,
+        maxOutputTokens: 1500,
+      },
+    };
+
+    const response = await retry(
+      async () => {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': apiKey,
+          },
+          body: JSON.stringify(body),
+        });
+
+        if (!res.ok) {
+          const errBody = await res.text();
+          throw new Error(`Gemini API error ${res.status}: ${errBody}`);
+        }
+
+        const json = (await res.json()) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+
+        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
+          throw new Error('Empty response from Gemini');
+        }
+        return text;
+      },
+      { maxAttempts: 3, label: 'Gemini API call' }
     );
 
     return response;
