@@ -16,10 +16,20 @@ You attend daily standups and fill out a weekly report every Monday. But by the 
 npm install
 ```
 
-### 2. Set your OpenAI API key
+### 2. Set your API key
 
+Depending on which provider you want to use, set the corresponding environment variables:
+
+**OpenAI (Default)**
 ```bash
+export LLM_PROVIDER=openai
 export OPENAI_API_KEY=sk-your-key-here
+```
+
+**Gemini**
+```bash
+export LLM_PROVIDER=gemini
+export GEMINI_API_KEY=your-gemini-key-here
 ```
 
 ### 3. Configure your repos
@@ -184,11 +194,14 @@ Configuration is loaded from `~/.weekpilot/config.json` with environment variabl
 
 | Env Variable | Description | Default |
 |-------------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API key (required for generation) | — |
+| `LLM_PROVIDER` | LLM provider to use (`openai` or `gemini`) | `openai` |
+| `OPENAI_API_KEY` | OpenAI API key (required if `LLM_PROVIDER=openai`) | — |
+| `WEEKPILOT_MODEL` | OpenAI model | `gpt-4o-mini` |
+| `GEMINI_API_KEY` | Gemini API key (required if `LLM_PROVIDER=gemini`) | — |
+| `WEEKPILOT_GEMINI_MODEL` | Gemini model | `gemini-flash-latest` |
 | `WEEKPILOT_REPOS` | Comma-separated repo paths | — |
 | `WEEKPILOT_NOTES_DIR` | Notes directory | `~/.weekpilot/notes` |
 | `WEEKPILOT_DATA_DIR` | Data directory | `~/.weekpilot` |
-| `WEEKPILOT_MODEL` | OpenAI model | `gpt-4o-mini` |
 
 ## Development
 
