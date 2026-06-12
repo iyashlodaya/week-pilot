@@ -3,7 +3,6 @@
 // ─────────────────────────────────────────────────────────────
 
 import * as crypto from 'node:crypto';
-import OpenAI from 'openai';
 import type {
   CollectedData,
   GeneratedSummary,
@@ -11,8 +10,8 @@ import type {
   WeekPilotConfig,
 } from '../types.js';
 import { today, weekNumber } from '../utils/dates.js';
-import { retry } from '../utils/retry.js';
 import { logger } from '../utils/logger.js';
+import { generateSummary } from '../services/llm.js';
 import {
   dailySystemPrompt,
   dailyUserPrompt,
@@ -29,15 +28,8 @@ import {
 export class Summarizer {
   private config: WeekPilotConfig;
 
-  // OpenAI client — lazily initialised only when provider is 'openai'
-  private openaiClient: OpenAI | null = null;
-
   constructor(config: WeekPilotConfig) {
     this.config = config;
-
-    if (config.llmProvider === 'openai') {
-      this.openaiClient = new OpenAI({ apiKey: config.openaiApiKey });
-    }
   }
 
   /**
@@ -91,8 +83,8 @@ export class Summarizer {
   }
 
   /**
-   * Make the actual LLM API call with retry logic.
-   * Delegates to the provider-specific implementation.
+   * Make the actual LLM API call.
+   * Delegates to the unified generateSummary service.
    */
   private async callLLM(
     systemPrompt: string,
@@ -108,101 +100,7 @@ export class Summarizer {
       );
     }
 
-    if (this.config.llmProvider === 'gemini') {
-      return this.callGemini(systemPrompt, truncatedUserPrompt);
-    }
-
-    return this.callOpenAI(systemPrompt, truncatedUserPrompt);
-  }
-
-  // ── OpenAI ───────────────────────────────────────────────
-
-  private async callOpenAI(
-    systemPrompt: string,
-    userPrompt: string
-  ): Promise<string> {
-    const client = this.openaiClient!;
-    const model = this.config.openaiModel;
-
-    const response = await retry(
-      async () => {
-        const completion = await client.chat.completions.create({
-          model,
-          messages: [
-            { role: 'developer', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.3, // low temperature for consistent, factual output
-          max_tokens: 1500,
-        });
-
-        const content = completion.choices[0]?.message?.content;
-        if (!content) {
-          throw new Error('Empty response from OpenAI');
-        }
-        return content;
-      },
-      { maxAttempts: 3, label: 'OpenAI API call' }
-    );
-
-    return response;
-  }
-
-  // ── Gemini (REST API) ────────────────────────────────────
-
-  private async callGemini(
-    systemPrompt: string,
-    userPrompt: string
-  ): Promise<string> {
-    const model = this.config.geminiModel;
-    const apiKey = this.config.geminiApiKey;
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-
-    const body = {
-      system_instruction: {
-        parts: [{ text: systemPrompt }],
-      },
-      contents: [
-        {
-          parts: [{ text: userPrompt }],
-        },
-      ],
-      generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 1500,
-      },
-    };
-
-    const response = await retry(
-      async () => {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-goog-api-key': apiKey,
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (!res.ok) {
-          const errBody = await res.text();
-          throw new Error(`Gemini API error ${res.status}: ${errBody}`);
-        }
-
-        const json = (await res.json()) as {
-          candidates?: { content?: { parts?: { text?: string }[] } }[];
-        };
-
-        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) {
-          throw new Error('Empty response from Gemini');
-        }
-        return text;
-      },
-      { maxAttempts: 3, label: 'Gemini API call' }
-    );
-
-    return response;
+    return generateSummary(truncatedUserPrompt, systemPrompt);
   }
 }
 
