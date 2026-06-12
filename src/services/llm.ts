@@ -1,4 +1,6 @@
 import { generateWithOllama } from "../providers/ollama.js";
+import { generateWithGemini } from "../providers/gemini.js";
+import { generateWithOpenAI } from "../providers/openai.js";
 
 type Provider = 'ollama' | 'gemini' | 'openai';
 
