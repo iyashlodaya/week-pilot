@@ -13,7 +13,9 @@ interface ProviderResult {
     durationMs: number;
 }
 
-const OLLAMA_TIMEOUT_MS = 10000; // 10 Seconds
+const OLLAMA_TIMEOUT_MS = process.env.OLLAMA_MODEL_TIMEOUT
+    ? parseInt(process.env.OLLAMA_MODEL_TIMEOUT, 10)
+    : 30000; // 30 Seconds
 
 async function withTimeout<T>(
     promise: Promise<T>,
@@ -36,7 +38,7 @@ export async function generateSummary(
     const providers: Provider[] = preferred === 'gemini'
         ? ['ollama', 'gemini', 'openai']
         : ['ollama', 'openai', 'gemini'];
-        
+
     const attempts: ProviderResult[] = [];
 
     for (const provider of providers) {
