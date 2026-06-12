@@ -2,6 +2,7 @@ import { loadConfig } from "../config.js";
 
 export async function generateWithGemini(
     prompt: string,
+    systemPrompt?: string,
     model?: string,
 ): Promise<string> {
     const config = loadConfig();
@@ -12,13 +13,23 @@ export async function generateWithGemini(
     const selectedModel = model || config.geminiModel || 'gemini-flash-latest';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent`;
 
-    const body = {
+    const body: any = {
         contents: [
             {
                 parts: [{ text: prompt }],
             },
         ],
+        generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1500,
+        },
     };
+
+    if (systemPrompt) {
+        body.system_instruction = {
+            parts: [{ text: systemPrompt }],
+        };
+    }
 
     const res = await fetch(url, {
         method: 'POST',
