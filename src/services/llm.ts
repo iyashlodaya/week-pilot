@@ -1,6 +1,7 @@
 import { generateWithOllama } from "../providers/ollama.js";
 import { generateWithGemini } from "../providers/gemini.js";
 import { generateWithOpenAI } from "../providers/openai.js";
+import { loadConfig } from "../config.js";
 
 type Provider = 'ollama' | 'gemini' | 'openai';
 
@@ -26,8 +27,16 @@ async function withTimeout<T>(
 }
 
 
-export async function generateSummary(prompt: string): Promise<string> {
-    const providers: Provider[] = ['ollama', 'gemini', 'openai'];
+export async function generateSummary(
+    prompt: string,
+    systemPrompt?: string,
+): Promise<string> {
+    const config = loadConfig();
+    const preferred = config.llmProvider;
+    const providers: Provider[] = preferred === 'gemini'
+        ? ['ollama', 'gemini', 'openai']
+        : ['ollama', 'openai', 'gemini'];
+        
     const attempts: ProviderResult[] = [];
 
     for (const provider of providers) {
@@ -37,14 +46,14 @@ export async function generateSummary(prompt: string): Promise<string> {
 
             if (provider === 'ollama') {
                 result = await withTimeout(
-                    generateWithOllama(prompt),
+                    generateWithOllama(prompt, systemPrompt),
                     OLLAMA_TIMEOUT_MS,
                     'Ollama'
                 );
             } else if (provider === 'gemini') {
-                result = await generateWithGemini(prompt);
+                result = await generateWithGemini(prompt, systemPrompt);
             } else {
-                result = await generateWithOpenAI(prompt);
+                result = await generateWithOpenAI(prompt, systemPrompt);
             }
 
             const durationMs = Date.now() - start;
