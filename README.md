@@ -16,7 +16,7 @@ You attend daily standups and fill out a weekly report every Monday. But by the 
 npm install
 ```
 
-### 2. Set your API key
+### 2. Set your LLM provider
 
 Depending on which provider you want to use, set the corresponding environment variables:
 
@@ -30,6 +30,13 @@ export OPENAI_API_KEY=sk-your-key-here
 ```bash
 export LLM_PROVIDER=gemini
 export GEMINI_API_KEY=your-gemini-key-here
+```
+
+**Ollama (Local & Free)**
+```bash
+export LLM_PROVIDER=ollama
+# Optional: specify local model (defaults to gemma4)
+export OLLAMA_MODEL=gemma4
 ```
 
 ### 3. Configure your repos
@@ -150,12 +157,18 @@ src/
 │   ├── git.ts              # Git commit collector (simple-git)
 │   ├── notes.ts            # Markdown/text notes collector
 │   └── index.ts            # Collector orchestrator
+├── providers/              # LLM backend clients
+│   ├── gemini.ts           # Gemini API client
+│   ├── openai.ts           # OpenAI client wrapper
+│   └── ollama.ts           # Ollama client wrapper
+├── services/               # Centralized services
+│   └── llm.ts              # Unified LLM caller with auto-fallback
 ├── prompts/                # LLM prompt templates
 │   ├── daily.ts            # Daily standup prompt
 │   ├── weekly.ts           # Weekly summary prompt
 │   └── index.ts
 ├── agents/                 # AI processing
-│   └── summarizer.ts       # OpenAI summarization agent
+│   └── summarizer.ts       # Summarization logic coordinator
 ├── memory/                 # Persistence layer
 │   ├── db.ts               # SQLite operations (better-sqlite3)
 │   └── index.ts            # High-level Memory API
@@ -194,11 +207,13 @@ Configuration is loaded from `~/.weekpilot/config.json` with environment variabl
 
 | Env Variable | Description | Default |
 |-------------|-------------|---------|
-| `LLM_PROVIDER` | LLM provider to use (`openai` or `gemini`) | `openai` |
+| `LLM_PROVIDER` | LLM provider to use (`openai`, `gemini`, or `ollama`) | `openai` |
 | `OPENAI_API_KEY` | OpenAI API key (required if `LLM_PROVIDER=openai`) | — |
-| `WEEKPILOT_MODEL` | OpenAI model | `gpt-4o-mini` |
+| `OPENAI_MODEL` | OpenAI model (fallback: `WEEKPILOT_MODEL`) | `gpt-4o-mini` |
 | `GEMINI_API_KEY` | Gemini API key (required if `LLM_PROVIDER=gemini`) | — |
-| `WEEKPILOT_GEMINI_MODEL` | Gemini model | `gemini-flash-latest` |
+| `GEMINI_MODEL` | Gemini model (fallback: `WEEKPILOT_GEMINI_MODEL`) | `gemini-flash-latest` |
+| `OLLAMA_MODEL` | Ollama model to use | `gemma4` |
+| `OLLAMA_MODEL_TIMEOUT` | Timeout in ms for local Ollama calls | `30000` |
 | `WEEKPILOT_REPOS` | Comma-separated repo paths | — |
 | `WEEKPILOT_NOTES_DIR` | Notes directory | `~/.weekpilot/notes` |
 | `WEEKPILOT_DATA_DIR` | Data directory | `~/.weekpilot` |
