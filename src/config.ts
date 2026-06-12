@@ -46,7 +46,9 @@ export function loadConfig(): WeekPilotConfig {
 
   // Resolve LLM provider
   const rawProvider = (process.env['LLM_PROVIDER'] || fileConfig.llmProvider || 'openai').toLowerCase();
-  const llmProvider: LlmProvider = rawProvider === 'gemini' ? 'gemini' : 'openai';
+  const llmProvider: LlmProvider =
+    rawProvider === 'gemini' ? 'gemini' :
+    rawProvider === 'ollama' ? 'ollama' : 'openai';
 
   // Build final config with env var overrides
   const config: WeekPilotConfig = {
@@ -58,9 +60,10 @@ export function loadConfig(): WeekPilotConfig {
     outputsDir: expandHome(fileConfig.outputsDir || path.join(dataDir, 'outputs')),
     llmProvider,
     openaiApiKey: process.env['OPENAI_API_KEY'] || fileConfig.openaiApiKey || '',
-    openaiModel: process.env['WEEKPILOT_MODEL'] || fileConfig.openaiModel || 'gpt-4o-mini',
+    openaiModel: process.env['OPENAI_MODEL'] || process.env['WEEKPILOT_MODEL'] || fileConfig.openaiModel || 'gpt-4o-mini',
     geminiApiKey: process.env['GEMINI_API_KEY'] || fileConfig.geminiApiKey || '',
-    geminiModel: process.env['WEEKPILOT_GEMINI_MODEL'] || fileConfig.geminiModel || 'gemini-flash-latest',
+    geminiModel: process.env['GEMINI_MODEL'] || process.env['WEEKPILOT_GEMINI_MODEL'] || fileConfig.geminiModel || 'gemini-flash-latest',
+    ollamaModel: process.env['OLLAMA_MODEL'] || fileConfig.ollamaModel || 'gemma4',
     authorFilter: process.env['WEEKPILOT_AUTHOR'] || fileConfig.authorFilter,
   };
 
@@ -88,6 +91,7 @@ export function saveConfig(config: WeekPilotConfig): void {
     llmProvider: config.llmProvider,
     openaiModel: config.openaiModel,
     geminiModel: config.geminiModel,
+    ollamaModel: config.ollamaModel,
     authorFilter: config.authorFilter,
   };
 

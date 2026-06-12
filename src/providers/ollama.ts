@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { loadConfig } from "../config.js";
 
 const ollamaClient = new OpenAI({
     baseURL: 'http://localhost:11434/v1',
@@ -8,16 +9,19 @@ const ollamaClient = new OpenAI({
 export async function generateWithOllama(
     prompt: string,
     systemPrompt?: string,
-    model: string = process.env['OLLAMA_MODEL'] || 'gemma4',
+    model?: string,
 ): Promise<string> {
+    const config = loadConfig();
     const messages: any[] = [];
     if (systemPrompt) {
         messages.push({ role: 'system', content: systemPrompt });
     }
     messages.push({ role: 'user', content: prompt });
 
+    const selectedModel = model || config.ollamaModel || 'gemma4';
+
     const response = await ollamaClient.chat.completions.create({
-        model,
+        model: selectedModel,
         messages
     });
 

@@ -103,11 +103,11 @@ program
 
     // LLM provider
     const providerInput = await ask(
-      `\nLLM provider (openai or gemini)\n  Current: ${config.llmProvider}\n  > `
+      `\nLLM provider (openai, gemini or ollama)\n  Current: ${config.llmProvider}\n  > `
     );
     if (providerInput.trim()) {
       const p = providerInput.trim().toLowerCase();
-      if (p === 'gemini' || p === 'openai') {
+      if (p === 'gemini' || p === 'openai' || p === 'ollama') {
         config.llmProvider = p;
       } else {
         console.log(`  ⚠ Unknown provider "${p}", keeping "${config.llmProvider}"`);
@@ -115,14 +115,20 @@ program
     }
 
     // Model
-    const modelLabel = config.llmProvider === 'gemini' ? 'Gemini model' : 'OpenAI model';
-    const currentModel = config.llmProvider === 'gemini' ? config.geminiModel : config.openaiModel;
+    const modelLabel =
+      config.llmProvider === 'gemini' ? 'Gemini model' :
+      config.llmProvider === 'ollama' ? 'Ollama model' : 'OpenAI model';
+    const currentModel =
+      config.llmProvider === 'gemini' ? config.geminiModel :
+      config.llmProvider === 'ollama' ? config.ollamaModel : config.openaiModel;
     const modelInput = await ask(
       `\n${modelLabel}\n  Current: ${currentModel}\n  > `
     );
     if (modelInput.trim()) {
       if (config.llmProvider === 'gemini') {
         config.geminiModel = modelInput.trim();
+      } else if (config.llmProvider === 'ollama') {
+        config.ollamaModel = modelInput.trim();
       } else {
         config.openaiModel = modelInput.trim();
       }
@@ -136,9 +142,13 @@ program
       console.log(
         '\n💡 Set your API key via: export GEMINI_API_KEY=your-key-here\n'
       );
-    } else {
+    } else if (config.llmProvider === 'openai') {
       console.log(
         '\n💡 Set your API key via: export OPENAI_API_KEY=sk-...\n'
+      );
+    } else {
+      console.log(
+        '\n💡 Ollama runs locally, no API key needed.\n'
       );
     }
   });
@@ -413,6 +423,7 @@ program
         openaiApiKey: config.openaiApiKey,
         geminiModel: config.geminiModel,
         geminiApiKey: config.geminiApiKey,
+        ollamaModel: config.ollamaModel,
         authorFilter: config.authorFilter || '(all)',
       });
     } else {
@@ -427,6 +438,7 @@ program
         openaiApiKey: config.openaiApiKey,
         geminiModel: config.geminiModel,
         geminiApiKey: config.geminiApiKey,
+        ollamaModel: config.ollamaModel,
         authorFilter: config.authorFilter || '(all)',
       });
     }

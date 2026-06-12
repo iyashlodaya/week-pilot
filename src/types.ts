@@ -68,7 +68,7 @@ export interface GeneratedSummary {
 /**
  * Supported LLM providers.
  */
-export type LlmProvider = 'openai' | 'gemini';
+export type LlmProvider = 'openai' | 'gemini' | 'ollama';
 
 /**
  * Application configuration loaded from config file + env vars.
@@ -83,6 +83,7 @@ export interface WeekPilotConfig {
   openaiModel: string;
   geminiApiKey: string;
   geminiModel: string;
+  ollamaModel: string;
   authorFilter?: string; // git author email/name to filter commits
 }
 
